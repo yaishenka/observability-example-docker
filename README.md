@@ -1,5 +1,7 @@
 # Сборка docker для лекции по observability
 
+![Docker Pulls](https://badgen.net/docker/pulls/yaishenka/docker-example-observability) ![Docker size](https://badgen.net/docker/size/yaishenka/docker-example-observability)
+
 [Репозиторий с лекциями по cpp](https://gitlab.com/yaishenka/cpp_course)
 [Лекция 24-25 года](https://gitlab.com/yaishenka/cpp_course/-/tree/2024_2025/lectures/observability?ref_type=heads)
 
