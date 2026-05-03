@@ -61,16 +61,26 @@ class Handler : public oatpp::web::server::HttpRequestHandler {
 public:
   std::shared_ptr<OutgoingResponse> handle(const std::shared_ptr<IncomingRequest>& request) override {
     Logging::Logger().Info() << "Called /rolldice";
-    auto tracer = opentelemetry::trace::Provider::GetTracerProvider()->GetTracer("my-app-tracer");
-    auto span = tracer->StartSpan("RollDiceServer");
 
-    int low = 1;
-    int high = 7;
-    int random = std::rand() % (high - low) + low;
+    auto tracer = opentelemetry::trace::Provider::GetTracerProvider()->GetTracer("roll-dice");
+    auto handle_span = tracer->StartSpan("rolldice");
+    auto handle_scope = tracer->WithActiveSpan(handle_span);
+    int random = 0;
+    {
+      auto roll_span = tracer->StartSpan("roll");
+      auto roll_scope = tracer->WithActiveSpan(roll_span);
+
+      int low = 1;
+      int high = 7;
+      random = rand() % (high - low) + low;
+
+      roll_span->SetAttribute("roll_value", random);
+    }
+
     const std::string response = std::to_string(random);
-
     Logging::Logger().Info() << "Roll dice ready to return " << random;
-    span->End();
+    handle_span->SetAttribute("response", response);
+    handle_span->End();
 
     return ResponseFactory::createResponse(Status::CODE_200, response.c_str());
   }
