@@ -4,30 +4,33 @@
 #include "oatpp/network/Server.hpp"
 #include "oatpp/network/tcp/server/ConnectionProvider.hpp"
 
-
-#include "opentelemetry/exporters/ostream/span_exporter_factory.h"
-#include "opentelemetry/sdk/trace/exporter.h"
+#include "opentelemetry/exporters/otlp/otlp_grpc_exporter_factory.h"
+#include "opentelemetry/nostd/shared_ptr.h"
 #include "opentelemetry/sdk/trace/processor.h"
 #include "opentelemetry/sdk/trace/provider.h"
 #include "opentelemetry/sdk/trace/simple_processor_factory.h"
 #include "opentelemetry/sdk/trace/tracer_provider.h"
 #include "opentelemetry/sdk/trace/tracer_provider_factory.h"
-#include "opentelemetry/trace/tracer_provider.h"
+#include "opentelemetry/sdk/resource/resource.h"
 #include "opentelemetry/trace/provider.h"
+#include "opentelemetry/trace/tracer_provider.h"
+
+#include <argparse/argparse.hpp>
 
 #include <cstdlib>
 #include <ctime>
 #include <string>
 #include <iostream>
 
-namespace trace_api      = opentelemetry::trace;
-namespace trace_sdk      = opentelemetry::sdk::trace;
-namespace trace_exporter = opentelemetry::exporter::trace;
+namespace trace     = opentelemetry::trace;
+namespace sdk       = opentelemetry::sdk;
+namespace trace_sdk = opentelemetry::sdk::trace;
+namespace otlp      = opentelemetry::exporter::otlp;
 
 class TracerGuard {
 public:
-  TracerGuard() {
-    InitTracer();
+  TracerGuard(std::string grpcEndpoint) {
+    InitTracer(std::move(grpcEndpoint));
   }
 
   ~TracerGuard() {
@@ -35,12 +38,17 @@ public:
   }
 
 private:
-  void InitTracer() {
-    auto exporter  = trace_exporter::OStreamSpanExporterFactory::Create();
+  void InitTracer(std::string grpcEndpoint) {
+    opentelemetry::exporter::otlp::OtlpGrpcExporterOptions opts;
+    opts.endpoint = grpcEndpoint;
+    auto exporter  = otlp::OtlpGrpcExporterFactory::Create(opts);
     auto processor = trace_sdk::SimpleSpanProcessorFactory::Create(std::move(exporter));
-    std::shared_ptr<trace_api::TracerProvider> provider =
-        trace_sdk::TracerProviderFactory::Create(std::move(processor));
-    trace_sdk::Provider::SetTracerProvider(provider);
+
+    sdk::resource::ResourceAttributes attributes = {{"service.name", "roll-dice-service"}};
+    auto resource = sdk::resource::Resource::Create(attributes);
+    std::shared_ptr<opentelemetry::trace::TracerProvider> provider  = trace_sdk::TracerProviderFactory::Create(std::move(processor), resource);
+
+    trace_api::Provider::SetTracerProvider(provider);
   }
 
   void CleanupTracer() {
@@ -80,10 +88,25 @@ void run() {
   server.run();
 }
 
-int main() {
-  Logging::Logger().Init("roll_dice.log");
+int main(int argc, char** argv) {
+  argparse::ArgumentParser program("dice-server");
 
-  TracerGuard tracer;
+  program.add_argument("--log")
+    .default_value(std::string("roll_dice.log"))
+    .help("Path to store log");
+
+  try {
+    program.parse_args(argc, argv);
+  }
+  catch (const std::exception& err) {
+    std::cerr << err.what() << std::endl;
+    std::cerr << program;
+    return 1;
+  }
+
+  Logging::Logger().Init(program["--log"]);
+
+  TracerGuard tracer("test");
 
   srand((int)time(0));
   run();

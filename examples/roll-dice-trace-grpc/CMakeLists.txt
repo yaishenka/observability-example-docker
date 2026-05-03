@@ -19,3 +19,5 @@ target_link_libraries(dice-server PRIVATE spdlog::spdlog)
 
 target_include_directories(dice-server PRIVATE ${OPENTELEMETRY_CPP_INCLUDE_DIRS})
 target_link_libraries(dice-server PRIVATE ${OPENTELEMETRY_CPP_LIBRARIES})
+
+include_directories(../third_party/argparse/include)
