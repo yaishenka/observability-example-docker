@@ -1,15 +1,15 @@
-FROM otel-cpp-ubuntu-latest as otel-source
+FROM otel-cpp-ubuntu-latest AS otel-source
 
-ls /opt/opentelemetry-cpp-install
+RUN ls /opt/opentelemetry-cpp-install
 
-FROM base-${BASE_IMAGE}-dev AS result
+FROM base-ubuntu-latest-dev AS result
 
 ENV TZ=Europe/Moscow
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-COPY --from=otel-source /opt/opentelemetry-cpp-install /
+COPY --from=otel-source /opt/opentelemetry-cpp-install /opentelemetry-cpp-install
 
-RUN cp -r /opt/opentelemetry-cpp-install/. /usr/
+RUN cp -r /opentelemetry-cpp-install/. /usr/
 
 RUN git clone https://github.com/oatpp/oatpp.git \
     && cd oatpp \
@@ -19,3 +19,15 @@ RUN git clone https://github.com/oatpp/oatpp.git \
     && cmake .. \
     && make -j$(nproc) \
     && make install
+
+RUN git clone https://github.com/gabime/spdlog.git \
+    && cd spdlog \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+    && make -j$(nproc) \
+    && make install
+
+WORKDIR /
+
+RUN apt-get update && apt-get install -y --no-install-recommends vim

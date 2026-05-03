@@ -5,15 +5,15 @@ DOCKER_LOGIN := login
 DOCKER_TOKEN := token
 OTEL_VERSION := v1.26.0
 
+NPROC := $(shell nproc)
+
 all: push
 
 login:
 	docker login -u ${DOCKER_LOGIN} -p ${DOCKER_TOKEN}
 
 build-otel-docker:
-	rm opentelemetry-cpp/docker/Dockerfile
-	cp build-otel-patch/Dockerfile opentelemetry-cpp/docker/Dockerfile
-	opentelemetry-cpp/docker/build.sh build.sh -b ubuntu-latest -j($nproc) -o ${OTEL_VERSION}
+	cd build-otel && ./build.sh -b ubuntu-latest -j${NPROC} -o ${OTEL_VERSION}
 
 build:
 	docker build \
@@ -22,3 +22,8 @@ build:
 		-t ${DOCKER_REPO}${TARGET}:latest \
 		--network host \
 		.
+	echo Builded ${DOCKER_REPO}${TARGET}:${DOCKER_TAG}
+
+push: build
+	docker push ${DOCKER_REPO}${TARGET}:${DOCKER_TAG}
+	docker push ${DOCKER_REPO}${TARGET}:latest
